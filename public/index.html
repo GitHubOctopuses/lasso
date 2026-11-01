@@ -1,0 +1,1109 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="color-scheme" content="light dark">
+<title>lasso · 把视频一拉就走</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 48 48'%3E%3Crect width='48' height='48' rx='11' fill='%231c1917'/%3E%3Cpath d='M33.5 29 A14 14 0 1 1 33 13.5 C37 17 41 29 46 40' fill='none' stroke='%23f59e0b' stroke-width='6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
+<style>
+  :root {
+    --bg: #faf6ef;
+    --card: #ffffff;
+    --ink: #1c1917;
+    --ink2: #79716b;
+    --line: #e9e2d4;
+    --accent: #d97706;
+    --accent2: #f59e0b;
+    --accent-deep: #b45309;
+    --accent-soft: #fdf1df;
+    --ok: #16a34a;
+    --err: #dc2626;
+    --track: #efe8da;
+    --shadow: 0 1px 2px rgba(60,42,10,.05), 0 10px 30px rgba(60,42,10,.07);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #131211;
+      --card: #1d1b18;
+      --ink: #f4f1ea;
+      --ink2: #a39d94;
+      --line: #35312b;
+      --accent: #f59e0b;
+      --accent2: #fbbf24;
+      --accent-deep: #d97706;
+      --accent-soft: #2c2318;
+      --ok: #4ade80;
+      --err: #f87171;
+      --track: #35312b;
+      --shadow: 0 1px 2px rgba(0,0,0,.4), 0 10px 30px rgba(0,0,0,.35);
+    }
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html { color-scheme: light dark; }
+  body {
+    font-family: -apple-system, "Segoe UI", "Microsoft YaHei", "PingFang SC", "Noto Sans SC", sans-serif;
+    background: var(--bg);
+    color: var(--ink);
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 42px 16px 48px;
+    transition: background .3s, color .3s;
+  }
+  main { width: 100%; max-width: 780px; }
+
+  /* ---------- 品牌头部 ---------- */
+  .masthead { text-align: center; margin-bottom: 30px; }
+  .brand {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    user-select: none;
+  }
+  .brand .word {
+    font-size: 46px;
+    font-weight: 800;
+    letter-spacing: -.02em;
+    line-height: 1;
+    font-family: -apple-system, "Segoe UI", Futura, "Microsoft YaHei", sans-serif;
+  }
+  .brand .mark { display: block; margin-top: 2px; }
+  .tagline { margin-top: 12px; color: var(--ink2); font-size: 15px; letter-spacing: .06em; }
+
+  /* ---------- 卡片 ---------- */
+  .card {
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 18px;
+    box-shadow: var(--shadow);
+    padding: 22px;
+    margin-bottom: 16px;
+    animation: pop .22s ease;
+  }
+  @keyframes pop {
+    from { opacity: 0; transform: translateY(8px); }
+    to   { opacity: 1; transform: none; }
+  }
+  .hidden { display: none !important; }
+
+  /* ---------- 引擎横幅 ---------- */
+  #engine-banner {
+    border-radius: 14px;
+    padding: 12px 16px;
+    font-size: 14px;
+    margin-bottom: 16px;
+    background: var(--accent-soft);
+    color: var(--accent-deep);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    animation: pop .22s ease;
+  }
+  #engine-banner.failed { background: transparent; border: 1px solid var(--err); color: var(--err); }
+  .bar-mini { flex: 1; height: 6px; background: color-mix(in srgb, currentColor 20%, transparent); border-radius: 4px; overflow: hidden; min-width: 120px; }
+  .bar-mini > div { height: 100%; background: currentColor; border-radius: 4px; transition: width .3s; }
+
+  /* ---------- 输入区 ---------- */
+  .input-row { display: flex; gap: 10px; }
+  #url-input {
+    flex: 1;
+    font-size: 15px;
+    padding: 13px 16px;
+    border: 1.5px solid var(--line);
+    border-radius: 13px;
+    background: var(--bg);
+    color: var(--ink);
+    outline: none;
+    transition: border-color .15s, box-shadow .15s;
+    min-width: 0;
+  }
+  #url-input:focus { border-color: var(--accent2); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent2) 18%, transparent); }
+  #url-input::placeholder { color: var(--ink2); }
+  .btn {
+    border: none;
+    border-radius: 13px;
+    padding: 13px 22px;
+    font-size: 15px;
+    font-weight: 650;
+    cursor: pointer;
+    transition: transform .06s, opacity .15s, background .15s;
+    font-family: inherit;
+    white-space: nowrap;
+  }
+  .btn:active { transform: scale(.97); }
+  .btn:disabled { opacity: .45; cursor: not-allowed; }
+  .btn-primary { background: linear-gradient(135deg, var(--accent2), var(--accent)); color: #fff; }
+  .btn-primary:hover { filter: brightness(1.05); }
+  .btn-ghost { background: transparent; color: var(--ink2); border: 1.5px solid var(--line); }
+  .btn-ghost:hover { color: var(--ink); border-color: var(--ink2); }
+  .btn.small { padding: 8px 14px; font-size: 13px; border-radius: 10px; }
+
+  .sub-row {
+    margin-top: 12px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 13px;
+    color: var(--ink2);
+  }
+  .linkish { cursor: pointer; user-select: none; }
+  .linkish:hover { color: var(--accent); }
+  #clip-hint { color: var(--ok); }
+
+  /* 支持网站面板 */
+  #sites-panel { margin-top: 14px; border-top: 1px dashed var(--line); padding-top: 14px; }
+  .sites-grid { display: flex; flex-wrap: wrap; gap: 8px; }
+  .chip {
+    font-size: 12.5px;
+    padding: 5px 12px;
+    border-radius: 999px;
+    background: var(--accent-soft);
+    color: var(--accent-deep);
+    font-weight: 600;
+  }
+  .sites-more { margin-top: 12px; font-size: 12.5px; }
+  .sites-more a { color: var(--accent); text-decoration: none; }
+  .sites-more a:hover { text-decoration: underline; }
+
+  /* ---------- 错误 ---------- */
+  #error-box {
+    border: 1px solid color-mix(in srgb, var(--err) 55%, transparent);
+    background: color-mix(in srgb, var(--err) 8%, transparent);
+    color: var(--err);
+    border-radius: 14px;
+    padding: 14px 16px;
+    font-size: 14px;
+    line-height: 1.7;
+    margin-bottom: 16px;
+    animation: pop .22s ease;
+  }
+  #error-box b { display: block; margin-bottom: 2px; }
+
+  /* ---------- 批量队列 ---------- */
+  .batch-head { display: flex; align-items: center; gap: 12px; margin-bottom: 14px; }
+  .batch-head b { font-size: 15.5px; }
+  #batch-progress-text { color: var(--ink2); font-size: 13.5px; flex: 1; }
+  .brow { display: flex; gap: 12px; padding: 12px 4px; border-top: 1px solid var(--line); align-items: flex-start; }
+  .brow:first-child { border-top: none; }
+  .bicon { width: 22px; height: 22px; flex-shrink: 0; display: grid; place-items: center; font-size: 15px; margin-top: 1px; }
+  .bmain { flex: 1; min-width: 0; }
+  .btitle { font-size: 14px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .bsub { font-size: 12.5px; color: var(--ink2); margin-top: 3px; word-break: break-all; }
+  .bsub.ok { color: var(--ok); }
+  .bsub.bad { color: var(--err); }
+  .bbar { height: 5px; background: var(--track); border-radius: 4px; overflow: hidden; margin-top: 7px; }
+  .bbar > div { height: 100%; width: 0%; background: linear-gradient(90deg, var(--accent2), var(--accent)); border-radius: 4px; transition: width .3s; }
+
+  /* ---------- 解析中 ---------- */
+  .probe-row { display: flex; align-items: center; gap: 14px; }
+  .probe-row .spinner { width: 22px; height: 22px; border-width: 3px; margin: 0; flex-shrink: 0; }
+  .probe-status { font-size: 15px; font-weight: 650; }
+  .probe-url {
+    font-size: 12.5px; color: var(--ink2); margin-top: 5px; word-break: break-all;
+    font-family: Consolas, "Microsoft YaHei", monospace;
+  }
+
+  /* ---------- 视频信息与清晰度 ---------- */
+  .video-title { font-size: 17px; font-weight: 700; line-height: 1.55; }
+  .video-meta { color: var(--ink2); font-size: 13.5px; margin-top: 8px; display: flex; flex-wrap: wrap; }
+  .video-meta .sep { margin: 0 8px; opacity: .5; }
+
+  .choices { margin-top: 18px; display: flex; flex-direction: column; gap: 8px; }
+  .choice {
+    display: flex;
+    align-items: center;
+    gap: 11px;
+    padding: 12px 14px;
+    border: 1.5px solid var(--line);
+    border-radius: 12px;
+    cursor: pointer;
+    font-size: 14.5px;
+    transition: border-color .12s, background .12s;
+    user-select: none;
+  }
+  .choice:hover { border-color: var(--accent2); }
+  .choice.selected { border-color: var(--accent); background: var(--accent-soft); font-weight: 650; }
+  .choice.disabled { opacity: .45; cursor: not-allowed; }
+  .choice .radio {
+    width: 16px; height: 16px;
+    border: 2px solid var(--line);
+    border-radius: 50%;
+    flex-shrink: 0;
+    display: grid; place-items: center;
+  }
+  .choice.selected .radio { border-color: var(--accent); }
+  .choice.selected .radio::after { content: ''; width: 8px; height: 8px; border-radius: 50%; background: var(--accent); }
+  .choice-note { font-size: 12.5px; color: var(--ink2); margin-top: 10px; }
+  .action-row { margin-top: 18px; display: flex; gap: 10px; justify-content: flex-end; }
+
+  /* ---------- 下载进度 ---------- */
+  .dl-label { font-size: 14px; color: var(--ink2); margin-bottom: 14px; word-break: break-all; }
+  .progress-row { display: flex; align-items: center; gap: 14px; }
+  .bar { flex: 1; height: 12px; background: var(--track); border-radius: 8px; overflow: hidden; }
+  .bar-fill {
+    height: 100%; width: 0%;
+    border-radius: 8px;
+    background: linear-gradient(90deg, var(--accent2), var(--accent));
+    transition: width .3s ease;
+    position: relative;
+  }
+  .bar-fill.indeterminate { width: 30%; animation: slide 1.1s ease-in-out infinite alternate; }
+  @keyframes slide { from { margin-left: 0; } to { margin-left: 70%; } }
+  .percent { font-size: 16px; font-weight: 800; min-width: 56px; text-align: right; font-variant-numeric: tabular-nums; }
+  .dl-stats { margin-top: 12px; font-size: 13px; color: var(--ink2); display: flex; gap: 18px; flex-wrap: wrap; }
+  .spinner {
+    width: 14px; height: 14px;
+    border: 2px solid var(--track);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    display: inline-block;
+    animation: spin .8s linear infinite;
+    vertical-align: -2px;
+    margin-right: 6px;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* ---------- 完成 ---------- */
+  .done-icon { font-size: 36px; line-height: 1; }
+  .done-title { font-size: 19px; font-weight: 800; color: var(--ok); margin-top: 8px; }
+  .done-path {
+    margin-top: 12px; font-size: 13px; color: var(--ink2); word-break: break-all;
+    background: var(--bg); border-radius: 10px; padding: 11px 13px;
+    font-family: Consolas, "Microsoft YaHei", monospace;
+  }
+  .done-actions { margin-top: 16px; display: flex; gap: 10px; }
+  .done-actions .btn { flex: 1; }
+
+  /* ---------- 历史 ---------- */
+  .hist-head { display: flex; align-items: center; gap: 10px; cursor: pointer; user-select: none; }
+  .hist-head b { font-size: 14.5px; }
+  .hist-head .count { color: var(--ink2); font-size: 13px; flex: 1; }
+  .hist-head .arrow { color: var(--ink2); transition: transform .18s; font-size: 12px; }
+  .hist-head.open .arrow { transform: rotate(180deg); }
+  .hist-clear { font-size: 12.5px; color: var(--ink2); cursor: pointer; }
+  .hist-clear:hover { color: var(--err); }
+  #history-list { margin-top: 6px; }
+  .hrow { display: flex; align-items: center; gap: 12px; padding: 11px 2px; border-top: 1px solid var(--line); }
+  .hrow .ht { flex: 1; min-width: 0; cursor: pointer; }
+  .hrow .ht:hover .hname { color: var(--accent); }
+  .hname { font-size: 13.5px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .hmeta { font-size: 12px; color: var(--ink2); margin-top: 2px; }
+  .hicon { width: 30px; height: 30px; border-radius: 9px; border: 1.5px solid var(--line); background: transparent; color: var(--ink2); cursor: pointer; font-size: 14px; display: grid; place-items: center; flex-shrink: 0; }
+  .hicon:hover { color: var(--accent); border-color: var(--accent2); }
+  .hempty { padding: 14px 2px 6px; font-size: 13px; color: var(--ink2); }
+
+  footer { margin-top: auto; padding-top: 36px; font-size: 12px; color: var(--ink2); text-align: center; line-height: 1.9; }
+  .foot-row { display: flex; align-items: center; justify-content: center; gap: 8px; flex-wrap: wrap; margin-bottom: 4px; }
+  #outdir-select {
+    font: inherit; color: var(--accent-deep); background: transparent;
+    border: 1px solid var(--line); border-radius: 8px; padding: 3px 8px;
+    cursor: pointer; max-width: 220px;
+  }
+  .ok-note { color: var(--ok); }
+  .bad-note { color: var(--err); }
+</style>
+</head>
+<body>
+<main>
+  <div class="masthead">
+    <div class="brand">
+      <span class="word">lass</span><svg class="mark" viewBox="0 0 48 48" width="38" height="38" aria-hidden="true"><defs><linearGradient id="rg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#f59e0b"/><stop offset="1" stop-color="#ea580c"/></linearGradient></defs><path d="M33.5 29 A14 14 0 1 1 33 13.5 C37 17 41 29 46 40" fill="none" stroke="url(#rg)" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </div>
+    <div class="tagline">套住任何视频，一拉就走</div>
+  </div>
+
+  <div id="engine-banner" class="hidden">
+    <span class="spinner"></span><span id="engine-text">正在初始化…</span>
+    <div class="bar-mini"><div id="engine-bar" style="width:0%"></div></div>
+  </div>
+
+  <div class="card" id="input-card">
+    <div class="input-row">
+      <input id="url-input" type="text" placeholder="粘贴视频链接（可一次粘贴多个，空格分隔批量下载）" autocomplete="off" spellcheck="false">
+      <button id="paste-btn" class="btn btn-ghost" title="从剪贴板粘贴">📋</button>
+      <button id="probe-btn" class="btn btn-primary">开始解析</button>
+    </div>
+    <div class="sub-row">
+      <span id="clip-hint"></span>
+      <span class="linkish" id="sites-toggle">支持哪些网站？▾</span>
+    </div>
+    <div id="sites-panel" class="hidden">
+      <div class="sites-grid">
+        <span class="chip">哔哩哔哩</span><span class="chip">抖音</span><span class="chip">快手</span><span class="chip">小红书</span><span class="chip">微博</span>
+        <span class="chip">YouTube</span><span class="chip">X（推特）</span><span class="chip">Instagram</span><span class="chip">TikTok</span><span class="chip">Facebook</span>
+        <span class="chip">Reddit</span><span class="chip">Twitch</span><span class="chip">Vimeo</span><span class="chip">SoundCloud</span><span class="chip">Threads</span><span class="chip">Dailymotion</span>
+      </div>
+      <div class="sites-more">以上为常用网站，基于 yt-dlp 引擎共支持 <b>1800+</b> 网站 · <a href="https://github.com/yt-dlp/yt-dlp/blob/master/supportedsites.md" target="_blank" rel="noopener">查看完整支持列表 ↗</a></div>
+    </div>
+  </div>
+
+  <div id="error-box" class="hidden"></div>
+
+  <div class="card hidden" id="probing-card">
+    <div class="probe-row">
+      <span class="spinner"></span>
+      <div style="min-width:0">
+        <div class="probe-status" id="probe-status">正在解析链接…</div>
+        <div class="probe-url" id="probe-url"></div>
+      </div>
+    </div>
+    <div class="action-row">
+      <button id="probe-cancel" class="btn btn-ghost small">取消</button>
+    </div>
+  </div>
+
+  <div class="card hidden" id="batch-card">
+    <div class="batch-head">
+      <b>批量下载</b>
+      <button id="batch-quality" class="btn btn-ghost small" title="点击切换">画质：最高</button>
+      <span id="batch-progress-text"></span>
+      <button id="batch-cancel" class="btn btn-ghost small">全部取消</button>
+    </div>
+    <div id="batch-list"></div>
+  </div>
+
+  <div class="card hidden" id="picking-card">
+    <div class="video-title" id="video-title"></div>
+    <div class="video-meta" id="video-meta"></div>
+    <div class="choices" id="choices"></div>
+    <div class="choice-note hidden" id="ffmpeg-note">⚠ 未检测到 ffmpeg：高清画质合并与 mp3 转换不可用，建议安装 ffmpeg 后重试。</div>
+    <div class="action-row">
+      <button id="reprobe-btn" class="btn btn-ghost">换一个链接</button>
+      <button id="download-btn" class="btn btn-primary">开始下载</button>
+    </div>
+  </div>
+
+  <div class="card hidden" id="downloading-card">
+    <div class="dl-label" id="dl-label"></div>
+    <div class="progress-row">
+      <div class="bar"><div class="bar-fill" id="bar-fill"></div></div>
+      <div class="percent" id="percent"></div>
+    </div>
+    <div class="dl-stats" id="dl-stats"></div>
+    <div class="action-row">
+      <button id="cancel-btn" class="btn btn-ghost">取消下载</button>
+    </div>
+  </div>
+
+  <div class="card hidden" id="done-card">
+    <div class="done-icon">🪢</div>
+    <div class="done-title">已套住！下载完成</div>
+    <div class="done-path" id="done-path"></div>
+    <div class="done-actions">
+      <button id="open-folder-btn" class="btn btn-primary">📂 打开所在文件夹</button>
+      <button id="again-btn" class="btn btn-ghost">继续下一个</button>
+    </div>
+  </div>
+
+  <div class="card hidden" id="history-card">
+    <div class="hist-head" id="hist-head">
+      <b>下载历史</b>
+      <span class="count" id="hist-count"></span>
+      <span class="linkish hist-clear" id="hist-clear" title="清空历史">清空</span>
+      <span class="arrow">▼</span>
+    </div>
+    <div id="history-list" class="hidden"></div>
+  </div>
+</main>
+
+<footer>
+  <div class="foot-row">
+    <span>保存到</span>
+    <select id="outdir-select" title="切换保存目录（限本机用户文件夹内）"></select>
+    <span>·</span>
+    <span class="linkish" id="update-engine-link">检查引擎更新</span>
+    <span id="engine-note"></span>
+  </div>
+  仅供个人存档，请尊重创作者版权 · 引擎 yt-dlp · 本地运行，数据不出你的电脑
+</footer>
+
+<script>
+const $ = id => document.getElementById(id)
+
+const S = {
+  phase: 'idle',
+  mode: null,          // 'single' | 'batch'
+  probeId: null,
+  choices: [],
+  selected: null,
+  taskId: null,
+  taskCtx: null,       // 单/批模式中当前任务附带的上下文
+  pollTimer: null,
+  ffmpegOk: true,
+  queue: null,         // 批量任务数组
+  queueIdx: -1,
+  batchAudio: false,   // 批量模式：false=最高画质，true=仅音频 mp3
+  lastPlatform: '',    // 最近一次解析出的平台名（写入历史记录）
+}
+
+/* ================= 工具 ================= */
+function fmtBytes(n) {
+  if (!Number.isFinite(n) || n <= 0) return ''
+  const units = ['B', 'KB', 'MB', 'GB']
+  let v = n, u = 0
+  while (v >= 1024 && u < units.length - 1) { v /= 1024; u++ }
+  return (v >= 100 ? Math.round(v) : v.toFixed(1)) + ' ' + units[u]
+}
+function fmtSpeed(n) { return n > 0 ? fmtBytes(n) + '/s' : '' }
+function fmtEta(s) {
+  if (!Number.isFinite(s) || s <= 0) return ''
+  if (s < 60) return Math.round(s) + ' 秒'
+  return Math.floor(s / 60) + ' 分 ' + Math.round(s % 60) + ' 秒'
+}
+function fmtDuration(s) {
+  if (!Number.isFinite(s) || s <= 0) return ''
+  s = Math.round(s)
+  const h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60), sec = s % 60
+  const p = n => String(n).padStart(2, '0')
+  return h > 0 ? `${h}:${p(m)}:${p(sec)}` : `${m}:${p(sec)}`
+}
+function timeAgo(t) {
+  const d = Date.now() - t
+  if (d < 60_000) return '刚刚'
+  if (d < 3_600_000) return Math.floor(d / 60_000) + ' 分钟前'
+  if (d < 86_400_000) return Math.floor(d / 3_600_000) + ' 小时前'
+  const dt = new Date(t), p = n => String(n).padStart(2, '0')
+  if (d < 172_800_000) return '昨天 ' + p(dt.getHours()) + ':' + p(dt.getMinutes())
+  return (dt.getMonth() + 1) + '月' + dt.getDate() + '日 ' + p(dt.getHours()) + ':' + p(dt.getMinutes())
+}
+function escapeHtml(s) {
+  return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))
+}
+function show(id) { $(id).classList.remove('hidden') }
+function hide(id) { $(id).classList.add('hidden') }
+
+async function api(path, body, signal) {
+  const res = await fetch(path, body ? {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+    signal,
+  } : { signal })
+  const data = await res.json().catch(() => ({ error: '服务器返回异常' }))
+  if (!res.ok) throw new Error(data.error || '请求失败（' + res.status + '）')
+  return data
+}
+
+function mapError(msg) {
+  const m = msg || ''
+  if (/Video unavailable/i.test(m)) return '视频不可用：可能已被删除、设为私密，或有地区限制。'
+  if (/Private video/i.test(m)) return '这是私人视频，无法下载。'
+  if (/Sign in to confirm|not a bot/i.test(m)) return '平台要求人机验证：请稍后再试；若反复出现，通常需要代理环境。'
+  if (/age[- ]restrict/i.test(m)) return '该视频有年龄限制，需要登录账号才能下载。'
+  if (/Unsupported URL/i.test(m)) return '暂不支持这个网站的链接。'
+  if (/not a valid URL/i.test(m)) return '链接格式不正确，请检查后重新粘贴。'
+  if (/(?:error|status|code)[^\d]{0,6}429|too many requests/i.test(m)) return '请求太频繁，请等几分钟再试。'
+  if (/copyright|Copyright/i.test(m)) return '该内容有版权限制，无法下载。'
+  if (/Premiere|premieres/i.test(m)) return '该视频正在首播或未开播，暂无法下载。'
+  if (/getaddrinfo|ETIMEDOUT|timed? ?out|Connection|network|Unable to download|Failed to resolve/i.test(m)) {
+    return '网络连接失败：请检查网络；如果下载的是国外网站（YouTube 等）的视频，通常需要开启代理后再试。'
+  }
+  if (/ffmpeg/i.test(m)) return '缺少 ffmpeg，无法完成高清合并或 mp3 转换。请先安装 ffmpeg。'
+  return m || '未知错误，请重试。'
+}
+
+function showError(msg) {
+  $('error-box').innerHTML = '<b>✗ 出错了</b>' + mapError(msg)
+  show('error-box')
+}
+
+function extractUrls(text) {
+  const seen = new Set()
+  return String(text).split(/[\s,，、;；]+/).map(t => t.trim()).filter(t => {
+    if (!/^https?:\/\//i.test(t)) return false
+    if (seen.has(t)) return false
+    seen.add(t)
+    return true
+  })
+}
+
+/* ================= 引擎状态 ================= */
+let healthTimer = null
+let lastUpdateNote = ''
+async function pollHealth() {
+  try {
+    const h = await api('/api/health')
+    S.ffmpegOk = h.ffmpeg
+    const banner = $('engine-banner')
+    const note = h.engineUpdateNote || ''
+    if (note !== lastUpdateNote) {
+      lastUpdateNote = note
+      const el = $('engine-note')
+      if (note) {
+        el.textContent = note.startsWith('更新失败') ? '⚠ ' + note : '✓ ' + note
+        el.className = note.startsWith('更新失败') ? 'bad-note' : 'ok-note'
+      } else {
+        el.textContent = ''
+      }
+    }
+    if (h.engine === 'ready') {
+      hide('engine-banner')
+      clearTimeout(healthTimer)
+      return true
+    }
+    if (h.engine === 'checking' || h.engine === 'downloading') {
+      banner.classList.remove('failed')
+      $('engine-text').textContent = h.engine === 'checking'
+        ? '正在检查下载引擎…'
+        : `正在下载/更新引擎… ${Math.round((h.engineProgress || 0) * 100)}%`
+      $('engine-bar').style.width = Math.round((h.engineProgress || 0) * 100) + '%'
+      show('engine-banner')
+    } else if (h.engine === 'failed') {
+      banner.classList.add('failed')
+      $('engine-text').textContent = '下载引擎下载失败：请检查网络（GitHub 可能需要代理），重启程序会自动重试。' + (h.engineError ? '（' + h.engineError + '）' : '')
+      show('engine-banner')
+    }
+  } catch { /* 服务器暂不可达 */ }
+  return false
+}
+function scheduleHealth() {
+  clearTimeout(healthTimer)
+  healthTimer = setTimeout(async () => {
+    const ok = await pollHealth()
+    if (!ok) scheduleHealth()
+  }, 1500)
+}
+
+/* ================= 保存目录 / 引擎更新 ================= */
+function shortDir(d) {
+  const parts = String(d).replace(/\\/g, '/').split('/').filter(Boolean)
+  return parts.slice(-2).join('/')
+}
+async function loadOutdir() {
+  try {
+    const {current, presets} = await api('/api/outdir')
+    const sel = $('outdir-select')
+    sel.innerHTML = ''
+    let hasCurrent = false
+    for (const p of presets) {
+      if (p.dir === current) hasCurrent = true
+      const opt = document.createElement('option')
+      opt.value = p.dir
+      opt.textContent = `${p.label} · ${shortDir(p.dir)}`
+      sel.appendChild(opt)
+    }
+    if (!hasCurrent) {
+      const opt = document.createElement('option')
+      opt.value = current
+      opt.textContent = shortDir(current)
+      sel.appendChild(opt)
+    }
+    sel.value = current
+    S.outdirPrev = current
+  } catch { /* 拿不到就保持空 */ }
+}
+$('outdir-select').onchange = async e => {
+  const dir = e.target.value
+  const prev = S.outdirPrev || dir
+  try {
+    await api('/api/outdir', {dir})
+    S.outdirPrev = dir
+    const el = $('engine-note')
+    el.textContent = '✓ 保存目录已切换'
+    el.className = 'ok-note'
+    setTimeout(() => { if (el.textContent === '✓ 保存目录已切换') el.textContent = '' }, 2500)
+  } catch (err) {
+    e.target.value = prev
+    alert(err.message)
+  }
+}
+$('update-engine-link').onclick = async () => {
+  $('engine-note').textContent = ''
+  try {
+    await api('/api/update-engine', {})
+    scheduleHealth() // 横幅展示下载进度，完成后 footer 显示结果
+  } catch (err) {
+    const el = $('engine-note')
+    el.textContent = '⚠ ' + err.message
+    el.className = 'bad-note'
+  }
+}
+
+/* ================= 剪贴板 ================= */
+async function tryClipboard() {
+  try { return await navigator.clipboard.readText() } catch { return '' }
+}
+async function pasteFromClipboard() {
+  const t = (await tryClipboard()).trim()
+  if (!t) { $('clip-hint').textContent = '剪贴板是空的'; return }
+  $('url-input').value = t.trim()
+  $('url-input').focus()
+  if (!extractUrls(t).length) $('clip-hint').textContent = '已粘贴，但里面还没发现链接'
+}
+async function autoDetectClipboard() {
+  const t = (await tryClipboard()).trim()
+  if (!t || /\s/.test(t)) return
+  const urls = extractUrls(t)
+  if (urls.length === 1) {
+    $('url-input').value = urls[0]
+    $('clip-hint').textContent = '✓ 检测到剪贴板里的链接，已帮你填好，直接点「开始解析」'
+  }
+}
+
+/* ================= 解析入口 ================= */
+async function doProbe() {
+  const urls = extractUrls($('url-input').value)
+  if (!urls.length) {
+    $('url-input').focus()
+    if ($('url-input').value.trim()) showError('没有识别到链接：请粘贴以 http:// 或 https:// 开头的完整网址。')
+    return
+  }
+  hide('error-box')
+  if (urls.length === 1) return probeSingle(urls[0])
+  startBatch(urls)
+}
+
+// 解析中的分阶段提示文案（纯前端计时展示，让等待有进度感）
+let probeMsgTimer = null
+function startProbeMessages(url) {
+  const isDouyin = /douyin\.com|iesdouyin\.com/i.test(url)
+  const msgs = isDouyin ? [
+    '正在打开抖音页面…',
+    '正在用无头浏览器渲染视频（抖音解析约需 5–15 秒）…',
+    '仍在渲染页面，抖音比其他网站慢几秒，请稍候…',
+    '快好了，正在截获视频流…',
+  ] : [
+    '正在连接网站…',
+    '正在获取视频信息…',
+    '正在整理可选清晰度…',
+  ]
+  let i = 0
+  $('probe-status').textContent = msgs[0]
+  $('probe-url').textContent = url.length > 64 ? url.slice(0, 64) + '…' : url
+  clearInterval(probeMsgTimer)
+  probeMsgTimer = setInterval(() => {
+    i = Math.min(i + 1, msgs.length - 1)
+    $('probe-status').textContent = msgs[i]
+  }, 3500)
+}
+function stopProbeMessages() { clearInterval(probeMsgTimer) }
+
+async function probeSingle(url) {
+  S.phase = 'probing'
+  hideAllCards()
+  show('probing-card')
+  startProbeMessages(url)
+  S.probeAbort = new AbortController()
+  $('probe-btn').disabled = true
+  $('probe-btn').textContent = '解析中…'
+  try {
+    const info = await api('/api/probe', { url }, S.probeAbort.signal)
+    S.probeId = info.probeId
+    S.choices = info.choices
+    S.selected = null
+    renderPicking(info)
+    S.phase = 'picking'
+  } catch (e) {
+    if (e.name === 'AbortError') {
+      S.phase = 'idle'
+    } else {
+      showError(e.message)
+      S.phase = 'idle'
+      show('input-card')
+    }
+  } finally {
+    stopProbeMessages()
+    hide('probing-card')
+    $('probe-btn').disabled = false
+    $('probe-btn').textContent = '开始解析'
+    S.probeAbort = null
+  }
+}
+
+function hideAllCards() {
+  hide('input-card'); hide('probing-card'); hide('picking-card')
+  hide('downloading-card'); hide('done-card'); hide('batch-card')
+}
+
+/* ================= 单个下载 ================= */
+function renderPicking(info) {
+  $('video-title').textContent = info.title
+  S.lastPlatform = info.platform || ''
+  const parts = ['平台：' + info.platform]
+  if (info.duration > 0) parts.push('时长：' + fmtDuration(info.duration))
+  if (info.uploader) parts.push('作者：' + info.uploader)
+  $('video-meta').innerHTML = parts.join('<span class="sep">·</span>')
+
+  const box = $('choices')
+  box.innerHTML = ''
+  S.choices.forEach(c => {
+    const div = document.createElement('div')
+    div.className = 'choice'
+    if (c.id === 'mp3' && !S.ffmpegOk) div.classList.add('disabled')
+    div.innerHTML = '<span class="radio"></span><span>' + escapeHtml(c.label) + '</span>'
+    div.onclick = () => {
+      if (div.classList.contains('disabled')) return
+      S.selected = c.id
+      box.querySelectorAll('.choice').forEach(el => el.classList.remove('selected'))
+      div.classList.add('selected')
+    }
+    box.appendChild(div)
+  })
+  const first = box.querySelector('.choice:not(.disabled)')
+  if (first) first.click()
+  if (!S.ffmpegOk) show('ffmpeg-note'); else hide('ffmpeg-note')
+  hide('input-card')
+  show('picking-card')
+}
+
+async function doDownload() {
+  if (!S.selected) return
+  hide('error-box')
+  try {
+    const r = await api('/api/download', { probeId: S.probeId, choiceId: S.selected })
+    S.taskId = r.taskId
+    S.mode = 'single'
+    S.taskCtx = { url: currentUrl(), title: $('video-title').textContent, platform: $('video-meta').textContent }
+    S.phase = 'downloading'
+    hide('picking-card')
+    $('dl-label').textContent = '正在准备下载…'
+    $('bar-fill').className = 'bar-fill indeterminate'
+    $('bar-fill').style.width = ''
+    $('percent').textContent = ''
+    $('dl-stats').innerHTML = ''
+    show('downloading-card')
+    schedulePoll()
+  } catch (e) {
+    showError(e.message)
+  }
+}
+
+function currentUrl() {
+  const urls = extractUrls($('url-input').value)
+  return urls[0] || ''
+}
+
+function schedulePoll() {
+  clearTimeout(S.pollTimer)
+  S.pollTimer = setTimeout(pollStatus, 500)
+}
+
+async function pollStatus() {
+  if (!S.taskId) return
+  let s
+  try {
+    s = await api('/api/status?taskId=' + encodeURIComponent(S.taskId))
+  } catch { return schedulePoll() }
+
+  if (S.mode === 'single') singleUpdate(s)
+  else batchUpdate(s)
+}
+
+function singleUpdate(s) {
+  if (S.phase !== 'downloading') return
+
+  if (s.phase === 'done') {
+    S.phase = 'done'
+    clearTimeout(S.pollTimer)
+    pushHistory({ url: S.taskCtx.url, title: s.filepath ? filepathName(s.filepath) : S.taskCtx.title, platform: S.lastPlatform, filepath: s.filepath, time: Date.now() })
+    hide('downloading-card')
+    $('done-path').textContent = s.filepath || ''
+    show('done-card')
+    return
+  }
+  if (s.phase === 'error') {
+    S.phase = 'error'
+    clearTimeout(S.pollTimer)
+    hide('downloading-card')
+    showError(s.error)
+    show('picking-card')
+    return
+  }
+  if (s.phase === 'cancelled') return backToPicking()
+
+  let label
+  if (s.refreshing) label = '缓存链接已过期，正在重新获取视频信息…'
+  else if (s.phase === 'starting') label = '正在准备下载…'
+  else if (s.phase === 'processing') label = '正在合并音视频 / 转换格式，请稍候…'
+  else if (s.totalParts > 1) label = `正在下载（第 ${s.part + 1}/${s.totalParts} 个文件，下载后自动合并）`
+  else label = '正在下载…'
+  $('dl-label').textContent = label
+
+  const fill = $('bar-fill')
+  if (s.phase === 'processing') {
+    fill.className = 'bar-fill indeterminate'
+    $('percent').textContent = ''
+  } else if (s.totalBytes > 0) {
+    fill.className = 'bar-fill'
+    fill.style.width = Math.min(100, s.downloadedBytes / s.totalBytes * 100) + '%'
+    $('percent').textContent = Math.round(s.downloadedBytes / s.totalBytes * 100) + '%'
+  } else {
+    fill.className = 'bar-fill indeterminate'
+    $('percent').textContent = ''
+  }
+
+  const stats = []
+  if (s.totalBytes > 0) stats.push(fmtBytes(s.downloadedBytes) + ' / ' + fmtBytes(s.totalBytes))
+  else if (s.downloadedBytes > 0) stats.push('已下载 ' + fmtBytes(s.downloadedBytes))
+  if (s.speed > 0) stats.push('速度 ' + fmtSpeed(s.speed))
+  if (s.eta > 0 && s.phase !== 'processing') stats.push('剩余 ' + fmtEta(s.eta))
+  $('dl-stats').innerHTML = stats.map(escapeHtml).join(' ')
+  schedulePoll()
+}
+
+function filepathName(p) {
+  const i = Math.max(p.lastIndexOf('\\'), p.lastIndexOf('/'))
+  return i >= 0 ? p.slice(i + 1) : p
+}
+
+function backToPicking() {
+  S.phase = 'picking'
+  hide('downloading-card')
+  if (S.probeId) show('picking-card')
+  else show('input-card')
+}
+
+async function onCancel() {
+  clearTimeout(S.pollTimer)
+  const tid = S.taskId
+  S.taskId = null
+  S.phase = 'picking'
+  try { await api('/api/cancel', { taskId: tid }) } catch { /* 忽略 */ }
+  backToPicking()
+}
+
+/* ================= 批量下载 ================= */
+function startBatch(urls) {
+  S.mode = 'batch'
+  S.phase = 'batch'
+  S.queue = urls.map(url => ({ url, status: 'pending', title: url, filepath: '', error: '', pct: 0 }))
+  S.queueIdx = -1
+  S.taskId = null
+  hideAllCards()
+  renderBatch()
+  show('batch-card')
+  processNext()
+}
+
+function renderBatch() {
+  const box = $('batch-list')
+  box.innerHTML = ''
+  const done = S.queue.filter(q => q.status === 'done' || q.status === 'error' || q.status === 'skipped').length
+  $('batch-progress-text').textContent = `${done} / ${S.queue.length} 已完成`
+  $('batch-cancel').disabled = false
+
+  S.queue.forEach((q, i) => {
+    const row = document.createElement('div')
+    row.className = 'brow'
+    let icon = '⋯', sub = '排队等待', subCls = '', bar = 0, barShow = false
+    if (q.status === 'probing') { icon = '◌'; sub = '<span class="spinner"></span>正在解析视频信息…' }
+    else if (q.status === 'downloading') { icon = '↓'; sub = q.statusLabel || '正在下载…'; bar = q.pct; barShow = true }
+    else if (q.status === 'processing') { icon = '◌'; sub = '正在合并音视频…' }
+    else if (q.status === 'done') { icon = '✓'; subCls = 'ok'; sub = escapeHtml('已保存：' + (q.filepath || '')) }
+    else if (q.status === 'error') { icon = '✗'; subCls = 'bad'; sub = '<span class="bad">' + escapeHtml(mapError(q.error)) + '</span>' }
+    else if (q.status === 'skipped') { icon = '–'; sub = '已跳过' }
+
+    row.innerHTML =
+      `<div class="bicon">${icon}</div>` +
+      `<div class="bmain"><div class="btitle" title="${escapeHtml(q.url)}">${escapeHtml(q.title)}</div>` +
+      `<div class="bsub ${subCls}">${sub}</div>` +
+      (barShow ? `<div class="bbar"><div style="width:${bar}%"></div></div>` : '') +
+      `</div>`
+    box.appendChild(row)
+  })
+}
+
+async function processNext() {
+  if (S.phase !== 'batch' || !S.queue) return
+  const next = S.queue.findIndex(q => q.status === 'pending')
+  if (next === -1) return finishBatch()
+  S.queueIdx = next
+  const item = S.queue[next]
+
+  try {
+    item.status = 'probing'
+    renderBatch()
+    const info = await api('/api/probe', { url: item.url })
+    // 批量解析期间用户可能点了「全部取消」——此刻立即停止，不再开始下载
+    if (S.phase !== 'batch' || item.status === 'skipped') return
+    item.title = info.title
+    // 按批量画质开关选格式：最高画质（v 开头的视频档）或仅音频 mp3
+    const choice = S.batchAudio
+      ? (info.choices.find(c => c.id === 'mp3' || c.id === 'da') || info.choices[0])
+      : (info.choices.find(c => c.id.startsWith('v')) || info.choices[0])
+    item.status = 'downloading'
+    item.statusLabel = '正在下载：' + choice.label
+    renderBatch()
+
+    const r = await api('/api/download', { probeId: info.probeId, choiceId: choice.id })
+    S.taskId = r.taskId
+    S.taskCtx = { item }
+    schedulePoll()
+  } catch (e) {
+    if (S.phase !== 'batch' || item.status === 'skipped') return
+    item.status = 'error'
+    item.error = e.message
+    renderBatch()
+    setTimeout(processNext, 400)
+  }
+}
+
+function batchUpdate(s) {
+  const item = S.queue?.[S.queueIdx]
+  if (!item) return
+
+  if (s.phase === 'done') {
+    item.status = 'done'
+    item.filepath = s.filepath
+    pushHistory({ url: item.url, title: filepathName(s.filepath || item.title), platform: S.lastPlatform, filepath: s.filepath, time: Date.now() })
+    S.taskId = null
+    renderBatch()
+    return setTimeout(processNext, 400)
+  }
+  if (s.phase === 'error') {
+    item.status = 'error'
+    item.error = s.error
+    S.taskId = null
+    renderBatch()
+    return setTimeout(processNext, 400)
+  }
+  if (s.phase === 'cancelled') {
+    item.status = 'error'
+    item.error = '已取消'
+    S.taskId = null
+    renderBatch()
+    return
+  }
+
+  if (s.refreshing) { item.statusLabel = '缓存链接过期，重新获取中…'; item.status = 'downloading' }
+  else if (s.phase === 'processing') { item.status = 'processing' }
+  else if (s.phase === 'downloading') {
+    item.status = 'downloading'
+    if (s.totalBytes > 0) {
+      item.pct = Math.round(s.downloadedBytes / s.totalBytes * 100)
+      item.statusLabel = `正在下载 ${item.pct}% · ${fmtBytes(s.downloadedBytes)} / ${fmtBytes(s.totalBytes)} · ${fmtSpeed(s.speed)}`.trim()
+    } else {
+      item.statusLabel = '正在下载… ' + fmtBytes(s.downloadedBytes)
+    }
+  } else if (s.phase === 'starting') { item.statusLabel = '正在准备下载…' }
+  renderBatch()
+  schedulePoll()
+}
+
+function finishBatch() {
+  S.phase = 'idle'
+  S.mode = null
+  $('batch-progress-text').textContent = '全部完成 ✓'
+  $('batch-cancel').textContent = '再来一批'
+}
+
+async function cancelBatch() {
+  if (S.phase === 'idle') {
+    // 批次已完成 → 回到输入界面
+    resetToInput()
+    return
+  }
+  clearTimeout(S.pollTimer)
+  if (S.taskId) { try { await api('/api/cancel', { taskId: S.taskId }) } catch { /* 忽略 */ } }
+  S.queue.forEach(q => { if (q.status === 'pending') q.status = 'skipped' })
+  const cur = S.queue[S.queueIdx]
+  if (cur && (cur.status === 'downloading' || cur.status === 'probing' || cur.status === 'processing')) {
+    cur.status = 'skipped'
+  }
+  S.taskId = null
+  renderBatch()
+  $('batch-progress-text').textContent = '已取消'
+}
+
+/* ================= 历史 ================= */
+const HIST_KEY = 'lasso-history'
+function loadHistory() {
+  try { return JSON.parse(localStorage.getItem(HIST_KEY)) || [] } catch { return [] }
+}
+function saveHistory(list) {
+  try { localStorage.setItem(HIST_KEY, JSON.stringify(list.slice(0, 30))) } catch { /* 存不下就算了 */ }
+}
+function pushHistory(entry) {
+  const list = loadHistory()
+  list.unshift(entry)
+  saveHistory(list)
+  renderHistory()
+}
+function renderHistory() {
+  const list = loadHistory()
+  if (!list.length) { hide('history-card'); return }
+  show('history-card')
+  $('hist-count').textContent = list.length + ' 条'
+  const box = $('history-list')
+  box.innerHTML = ''
+  list.forEach(h => {
+    const row = document.createElement('div')
+    row.className = 'hrow'
+    row.innerHTML =
+      `<div class="ht" title="点击重新解析这个链接"><div class="hname">${escapeHtml(h.title || h.url)}</div>` +
+      `<div class="hmeta">${escapeHtml(h.platform || '')}${h.platform ? ' · ' : ''}${timeAgo(h.time)}</div></div>` +
+      `<button class="hicon" data-act="folder" title="打开所在文件夹">📂</button>` +
+      `<button class="hicon" data-act="retry" title="重新下载这个链接">↻</button>`
+    row.querySelector('.ht').onclick = () => {
+      $('url-input').value = h.url
+      resetToInput()
+      doProbe()
+    }
+    row.querySelector('[data-act="folder"]').onclick = () =>
+      api('/api/open-folder', { filepath: h.filepath }).catch(() => {})
+    row.querySelector('[data-act="retry"]').onclick = () => {
+      $('url-input').value = h.url
+      resetToInput()
+      doProbe()
+    }
+    box.appendChild(row)
+  })
+}
+
+function resetToInput() {
+  S.phase = 'idle'
+  S.mode = null
+  S.probeId = null
+  S.taskId = null
+  clearTimeout(S.pollTimer)
+  hideAllCards()
+  show('input-card')
+  $('url-input').focus()
+}
+
+/* ================= 事件绑定 ================= */
+$('probe-btn').onclick = doProbe
+$('url-input').addEventListener('keydown', e => { if (e.key === 'Enter') doProbe() })
+$('paste-btn').onclick = pasteFromClipboard
+$('probe-cancel').onclick = () => {
+  S.probeAbort?.abort()
+  resetToInput()
+}
+$('sites-toggle').onclick = () => {
+  const p = $('sites-panel')
+  p.classList.toggle('hidden')
+  $('sites-toggle').textContent = p.classList.contains('hidden') ? '支持哪些网站？▾' : '收起网站列表 ▴'
+}
+$('download-btn').onclick = doDownload
+$('cancel-btn').onclick = onCancel
+$('reprobe-btn').onclick = resetToInput
+$('again-btn').onclick = () => { resetToInput(); $('url-input').value = '' }
+$('open-folder-btn').onclick = () => api('/api/open-folder', { filepath: $('done-path').textContent }).catch(() => {})
+$('batch-cancel').onclick = cancelBatch
+$('batch-quality').onclick = () => {
+  S.batchAudio = !S.batchAudio
+  $('batch-quality').textContent = S.batchAudio ? '画质：仅音频 mp3' : '画质：最高'
+}
+$('hist-head').onclick = e => {
+  if (e.target.id === 'hist-clear') return
+  const l = $('history-list')
+  l.classList.toggle('hidden')
+  $('hist-head').classList.toggle('open', !l.classList.contains('hidden'))
+}
+$('hist-clear').onclick = () => {
+  saveHistory([])
+  renderHistory()
+  hide('history-card')
+}
+
+/* ================= 启动 ================= */
+pollHealth().then(ok => { if (!ok) scheduleHealth() })
+autoDetectClipboard()
+renderHistory()
+loadOutdir()
+$('url-input').focus()
+</script>
+</body>
+</html>

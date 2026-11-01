@@ -1,0 +1,12 @@
+# 依赖与构建产物
+node_modules/
+dist/
+
+# 本地运行时数据（引擎/配置/渲染 profile 都在 ~/.lasso，不在仓库内）
+*.log
+*.download
+
+# 系统文件
+.DS_Store
+Thumbs.db
+desktop.ini
