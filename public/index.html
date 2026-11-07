@@ -730,7 +730,9 @@ function renderEnv(h) {
 
   const ffmpegVal = h.ffmpeg
     ? { ico: '✓', cls: 'ok', text: h.ffmpegPath ? '内置版本（项目 bin/ffmpeg.exe）' : '系统安装（PATH）' }
-    : { ico: '✗', cls: 'bad', text: '未找到 —— 请把 ffmpeg.exe 放到 lasso 文件夹的 bin 子目录里（与 server.mjs 同级的 bin），或安装到系统 PATH 后点「重新检测」' }
+    : h.ffmpegDownloading
+      ? { ico: '◌', cls: '', text: `首次使用，正在下载 ffmpeg（约 28MB）… ${Math.round((h.ffmpegProgress || 0) * 100)}%，完成后自动可用` }
+      : { ico: '✗', cls: 'bad', text: '未找到 —— 点「重新检测」会自动下载 ffmpeg；也可以把 ffmpeg.exe 放到项目 bin/ 文件夹' + (h.ffmpegError ? '（上次失败：' + h.ffmpegError + '）' : '') }
 
   const edgeVal = h.edge
     ? { ico: '✓', cls: 'ok', text: '可用（抖音下载通道依赖它）' }
@@ -797,7 +799,7 @@ async function pollHealth() {
         el.textContent = ''
       }
     }
-    if (h.engine === 'ready') {
+    if (h.engine === 'ready' && !h.ffmpegDownloading) {
       hide('engine-banner')
       clearTimeout(healthTimer)
       return true
@@ -1402,7 +1404,8 @@ $('env-recheck').onclick = async e => {
     ])
     S.ffmpegOk = h.ffmpeg
     renderEnv(h) // 渲染结果（✓ 一切就绪 / ⚠ 需要处理），状态变化一目了然
-    if (h.engine !== 'ready') scheduleHealth()
+    // ffmpeg 自动下载或引擎重试进行中：保持轮询，让进度实时刷新
+    if (h.engine !== 'ready' || h.ffmpegDownloading) scheduleHealth()
   } catch { /* 服务器无响应时保留原状态 */ }
   finally {
     btn.dataset.busy = ''

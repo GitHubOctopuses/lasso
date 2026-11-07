@@ -12,6 +12,7 @@ import {fileURLToPath} from 'node:url'
 import {Readable} from 'node:stream'
 import {pipeline} from 'node:stream/promises'
 import crypto from 'node:crypto'
+import zlib from 'node:zlib'
 
 const HOST = '127.0.0.1'
 const PORT = 8765
@@ -20,6 +21,11 @@ const INDEX_HTML = path.join(__dirname, 'public', 'index.html')
 const OUT_DIR = path.join(os.homedir(), 'Downloads')
 const YTDLP_DIR = path.join(os.homedir(), '.lasso', 'bin')
 const YTDLP_EXE = path.join(YTDLP_DIR, 'yt-dlp.exe')
+// ffmpeg 自动下载目标目录（与 yt-dlp 引擎同处；项目 bin/ 里的内置版优先）
+const FFMPEG_DIR = YTDLP_DIR
+const FFMPEG_EXE = path.join(FFMPEG_DIR, 'ffmpeg.exe')
+const FFPROBE_EXE = path.join(FFMPEG_DIR, 'ffprobe.exe')
+const FFMPEG_BASE = 'https://github.com/eugeneware/ffmpeg-static/releases/download/b6.1.1'
 // 兼容旧目录：之前下载过的引擎直接复用，避免重复下载
 const LEGACY_YTDLP = path.join(os.homedir(), '.yoinks', 'bin', 'yt-dlp.exe')
 const RELEASE_URL = 'https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp.exe'
@@ -157,20 +163,86 @@ async function ffmpegAvailable() {
   return (await resolveFfmpeg()) !== null
 }
 
-// 查找 ffmpeg：项目内置 bin/ffmpeg.exe 优先（不依赖系统 PATH，双击启动也能找到），
-// 其次 PATH 上的 ffmpeg。返回完整路径或 null。
+// 查找 ffmpeg：项目内置 bin/ffmpeg.exe → ~/.lasso/bin 自动下载版 → 系统 PATH。
+// 返回完整路径或 null。
 async function resolveFfmpeg() {
   if (ffmpegPath) return ffmpegPath
-  const bundled = path.join(__dirname, 'bin', 'ffmpeg.exe')
-  if (await commandWorks(bundled, ['-version'], 8_000)) {
-    ffmpegPath = bundled
-    return ffmpegPath
+  const candidates = [
+    path.join(__dirname, 'bin', 'ffmpeg.exe'), // 项目内置（gitignore，不入仓库）
+    FFMPEG_EXE,                                // 首次运行自动下载
+  ]
+  for (const c of candidates) {
+    if (await commandWorks(c, ['-version'], 8_000)) {
+      ffmpegPath = c
+      return ffmpegPath
+    }
   }
   if (await commandWorks('ffmpeg', ['-version'], 8_000)) {
     ffmpegPath = 'ffmpeg'
     return ffmpegPath
   }
   return null
+}
+
+// ffmpeg 自动下载：ffmpeg-static 官方构建的 gzip 版（约 28MB），Node 内置 zlib
+// 解压后即可用。ffprobe 为可选组件，下载失败不影响主流程。
+const ffmpegDl = {
+  status: 'idle', // idle | downloading | ready | failed
+  progress: 0,
+  error: '',
+  promise: null,
+}
+
+async function downloadGz(url, destExe, label, onProgress) {
+  await fs.mkdir(FFMPEG_DIR, {recursive: true})
+  const gzPath = `${destExe}.gz`
+  const res = await fetch(url)
+  if (!res.ok || !res.body) throw new Error(`下载 ${label} 失败（HTTP ${res.status}）`)
+  const total = Number(res.headers.get('content-length')) || 0
+  const source = Readable.fromWeb(res.body)
+  let downloaded = 0
+  source.on('data', chunk => {
+    downloaded += chunk.length
+    if (total > 0) onProgress(downloaded / total)
+  })
+  await pipeline(source, createWriteStream(gzPath))
+  const gz = await fs.readFile(gzPath)
+  await fs.writeFile(destExe, zlib.gunzipSync(gz))
+  await fs.rm(gzPath, {force: true})
+}
+
+async function ensureFfmpegDownload() {
+  if (ffmpegDl.promise) return ffmpegDl.promise
+  ffmpegDl.promise = (async () => {
+    ffmpegDl.status = 'downloading'
+    ffmpegDl.progress = 0
+    ffmpegDl.error = ''
+    console.log('[ffmpeg] 首次使用，正在下载 ffmpeg（约 28MB，完成后自动可用）…')
+    try {
+      await downloadGz(`${FFMPEG_BASE}/ffmpeg-win32-x64.gz`, FFMPEG_EXE, 'ffmpeg',
+        p => (ffmpegDl.progress = p * 0.9))
+      if (!(await commandWorks(FFMPEG_EXE, ['-version']))) {
+        throw new Error('下载的 ffmpeg 无法运行')
+      }
+      try {
+        await downloadGz(`${FFMPEG_BASE}/ffprobe-win32-x64.gz`, FFPROBE_EXE, 'ffprobe',
+          p => (ffmpegDl.progress = 0.9 + p * 0.1))
+        await commandWorks(FFPROBE_EXE, ['-version'])
+      } catch { /* ffprobe 可选，失败不影响 */ }
+      ffmpegPath = FFMPEG_EXE
+      ffmpegOk = true
+      ffmpegDl.status = 'ready'
+      ffmpegDl.progress = 1
+      console.log(`[ffmpeg] 就绪：${FFMPEG_EXE}`)
+    } catch (error) {
+      ffmpegDl.status = 'failed'
+      ffmpegDl.error = error instanceof Error ? error.message : String(error)
+      console.error('[ffmpeg]', ffmpegDl.error)
+      ffmpegDl.promise = null // 允许「重新检测」时重试
+      throw error
+    }
+  })()
+  return ffmpegDl.promise
 }
 
 // 手动更新：重新下载最新 yt-dlp 覆盖旧版；失败保留旧版本
@@ -1145,6 +1217,9 @@ const server = http.createServer(async (req, res) => {
         engineUpdateNote,
         ffmpeg: ffmpegOk,
         ffmpegPath: ffmpegPath && ffmpegPath !== 'ffmpeg' ? ffmpegPath : '',
+        ffmpegDownloading: ffmpegDl.status === 'downloading',
+        ffmpegProgress: ffmpegDl.progress,
+        ffmpegError: ffmpegDl.error,
         edge: edgeAvailable,
         downloadsDir: outDir,
       })
@@ -1152,13 +1227,17 @@ const server = http.createServer(async (req, res) => {
     }
 
     // 真正的重新检测：现场重测 ffmpeg / Edge（GET /api/health 只返回缓存状态，
-    // 页面轮询用的就是它）；引擎此前下载失败的话顺带重试一次
+    // 页面轮询用的就是它）；ffmpeg 缺失则自动开始下载，引擎此前下载失败的话
+    // 顺带重试一次
     if (route === 'POST /api/recheck') {
       ffmpegPath = null
       ;[ffmpegOk, edgeAvailable] = await Promise.all([
         ffmpegAvailable(),
         findEdge().then(Boolean),
       ])
+      if (!ffmpegOk && ffmpegDl.status !== 'downloading') {
+        void ensureFfmpegDownload().catch(() => {})
+      }
       if (engine.status === 'failed') void ensureEngine().catch(() => {})
       sendJson(res, 200, {
         engine: engine.status,
@@ -1167,6 +1246,9 @@ const server = http.createServer(async (req, res) => {
         engineUpdateNote,
         ffmpeg: ffmpegOk,
         ffmpegPath: ffmpegPath && ffmpegPath !== 'ffmpeg' ? ffmpegPath : '',
+        ffmpegDownloading: ffmpegDl.status === 'downloading',
+        ffmpegProgress: ffmpegDl.progress,
+        ffmpegError: ffmpegDl.error,
         edge: edgeAvailable,
         downloadsDir: outDir,
       })
@@ -1327,7 +1409,8 @@ server.listen(PORT, HOST, async () => {
   if (ffmpegOk) {
     console.log(`[环境] ffmpeg: ${ffmpegPath}`)
   } else {
-    console.log('[环境] 未找到 ffmpeg：把 ffmpeg.exe 放到项目 bin/ 文件夹，或安装到系统 PATH')
+    console.log('[环境] 未找到 ffmpeg：开始自动下载（约 28MB）…')
+    void ensureFfmpegDownload().catch(() => {}) // 下载完成即自动可用
   }
   if (!edgeAvailable) {
     console.log('[环境] 未找到 Edge：抖音下载通道不可用（其他网站不受影响）')
