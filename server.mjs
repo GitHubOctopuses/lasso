@@ -1071,13 +1071,21 @@ function isInsideOutDir(filepath) {
   return resolved === dir || resolved.startsWith(dir + path.sep)
 }
 
-function openFolder(filepath) {
+// 「打开所在文件夹」：优先在资源管理器里选中具体文件。
+// /select 语法对引号敏感：路径含空格时 Node 的参数数组会把 "/select,路径"
+// 整段套上引号，explorer 无法识别而静默失败（表现为点了没反应）。
+// 必须用 shell 形式让引号只包住路径：explorer /select,"路径"。
+// 安全性：路径先做目录前缀校验再校验真实存在，且 Windows 文件名不可能含
+// 双引号，引号内 & 等元字符对 cmd 也是字面量，无注入面。
+async function openFolder(filepath) {
   if (filepath && isInsideOutDir(filepath)) {
-    // 选中具体文件，比只打开文件夹更贴心
-    spawn('explorer.exe', [`/select,${filepath}`], {windowsHide: true})
-    return
+    const stat = await fs.stat(filepath).catch(() => null)
+    if (stat?.isFile()) {
+      spawn(`explorer /select,"${filepath}"`, {shell: true, detached: true, stdio: 'ignore'}).unref()
+      return
+    }
   }
-  spawn('explorer.exe', [outDir], {windowsHide: true})
+  spawn('explorer', [outDir], {detached: true, stdio: 'ignore'}).unref()
 }
 
 let ffmpegOk = false
