@@ -10,3 +10,6 @@ dist/
 .DS_Store
 Thumbs.db
 desktop.ini
+
+# ffmpeg 内置二进制（体积大且有 GPL 许可证，不入仓库）
+bin/

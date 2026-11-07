@@ -154,7 +154,23 @@ async function ensureEngine() {
 }
 
 async function ffmpegAvailable() {
-  return commandWorks('ffmpeg', ['-version'], 5_000)
+  return (await resolveFfmpeg()) !== null
+}
+
+// 查找 ffmpeg：项目内置 bin/ffmpeg.exe 优先（不依赖系统 PATH，双击启动也能找到），
+// 其次 PATH 上的 ffmpeg。返回完整路径或 null。
+async function resolveFfmpeg() {
+  if (ffmpegPath) return ffmpegPath
+  const bundled = path.join(__dirname, 'bin', 'ffmpeg.exe')
+  if (await commandWorks(bundled, ['-version'], 8_000)) {
+    ffmpegPath = bundled
+    return ffmpegPath
+  }
+  if (await commandWorks('ffmpeg', ['-version'], 8_000)) {
+    ffmpegPath = 'ffmpeg'
+    return ffmpegPath
+  }
+  return null
 }
 
 // 手动更新：重新下载最新 yt-dlp 覆盖旧版；失败保留旧版本
@@ -722,6 +738,7 @@ async function runTask(task) {
     '--no-warnings',
     '--encoding', 'utf-8',
     '--windows-filenames',
+    ...(ffmpegPath && ffmpegPath !== 'ffmpeg' ? ['--ffmpeg-location', ffmpegPath] : []),
     '--newline',
     '--no-quiet',
     '--progress',
@@ -911,7 +928,7 @@ async function runDouyinTask(task) {
       : ['-y', '-i', videoFile, '-i', audioFile, '-c', 'copy', '-movflags', '+faststart', finalPath]
 
     await new Promise((resolve, reject) => {
-      const child = spawn('ffmpeg', ffmpegArgs, {windowsHide: true})
+      const child = spawn(ffmpegPath || 'ffmpeg', ffmpegArgs, {windowsHide: true})
       trackChild(child)
       task.child = child
       let stderr = ''
@@ -1064,6 +1081,8 @@ function openFolder(filepath) {
 }
 
 let ffmpegOk = false
+let ffmpegPath = null
+let edgeAvailable = false
 
 // Host/Origin 校验：本服务只允许从 127.0.0.1:8765 访问。
 // - Host 校验阻断 DNS rebinding（外部域名解析到本机后浏览器视其为同源）
@@ -1117,6 +1136,8 @@ const server = http.createServer(async (req, res) => {
         engineError: engine.error,
         engineUpdateNote,
         ffmpeg: ffmpegOk,
+        ffmpegPath: ffmpegPath && ffmpegPath !== 'ffmpeg' ? ffmpegPath : '',
+        edge: edgeAvailable,
         downloadsDir: outDir,
       })
       return
@@ -1269,9 +1290,17 @@ server.listen(PORT, HOST, async () => {
   await loadConfig()
   console.log(`保存目录: ${outDir}`)
   void cleanupStaleTmp()
-  ffmpegOk = await ffmpegAvailable()
-  if (!ffmpegOk) {
-    console.log('[提示] 未找到 ffmpeg：高清合并与 mp3 转换将不可用（普通下载不受影响）')
+  ;[ffmpegOk, edgeAvailable] = await Promise.all([
+    ffmpegAvailable(),
+    findEdge().then(Boolean),
+  ])
+  if (ffmpegOk) {
+    console.log(`[环境] ffmpeg: ${ffmpegPath}`)
+  } else {
+    console.log('[环境] 未找到 ffmpeg：把 ffmpeg.exe 放到项目 bin/ 文件夹，或安装到系统 PATH')
+  }
+  if (!edgeAvailable) {
+    console.log('[环境] 未找到 Edge：抖音下载通道不可用（其他网站不受影响）')
   }
   void ensureEngine().catch(() => {}) // 后台预热引擎
 })

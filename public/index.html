@@ -294,6 +294,24 @@
   .hicon:hover { color: var(--accent); border-color: var(--accent2); }
   .hempty { padding: 14px 2px 6px; font-size: 13px; color: var(--ink2); }
 
+  /* ---------- 环境自检 ---------- */
+  .env-head { display: flex; align-items: center; gap: 10px; cursor: pointer; user-select: none; }
+  .env-head b { font-size: 14.5px; }
+  #env-summary { flex: 1; font-size: 13px; }
+  #env-summary.ok { color: var(--ok); }
+  #env-summary.warn { color: var(--accent-deep); }
+  .env-head .arrow { color: var(--ink2); transition: transform .18s; font-size: 12px; }
+  .env-head.open .arrow { transform: rotate(180deg); }
+  .env-recheck { font-size: 12.5px; color: var(--ink2); }
+  #env-list { margin-top: 6px; }
+  .env-row { display: flex; gap: 10px; padding: 10px 2px; border-top: 1px solid var(--line); font-size: 13.5px; align-items: baseline; }
+  .env-ico { width: 20px; flex-shrink: 0; text-align: center; }
+  .env-name { width: 108px; font-weight: 600; flex-shrink: 0; }
+  .env-val { color: var(--ink2); word-break: break-all; min-width: 0; }
+  .env-val.ok { color: var(--ok); }
+  .env-val.warn { color: var(--accent-deep); }
+  .env-val.bad { color: var(--err); }
+
   footer { margin-top: auto; padding-top: 36px; font-size: 12px; color: var(--ink2); text-align: center; line-height: 1.9; }
   .foot-row { display: flex; align-items: center; justify-content: center; gap: 8px; flex-wrap: wrap; margin-bottom: 4px; }
   #outdir-select {
@@ -405,6 +423,16 @@
       <span class="arrow">▼</span>
     </div>
     <div id="history-list" class="hidden"></div>
+  </div>
+
+  <div class="card hidden" id="env-card">
+    <div class="env-head" id="env-head">
+      <b>环境自检</b>
+      <span id="env-summary"></span>
+      <span class="linkish env-recheck" id="env-recheck">重新检测</span>
+      <span class="arrow">▼</span>
+    </div>
+    <div id="env-list" class="hidden"></div>
   </div>
 </main>
 
@@ -519,6 +547,65 @@ function extractUrls(text) {
   })
 }
 
+/* ================= 环境自检 ================= */
+let envExpandedOnce = false
+function renderEnv(h) {
+  const engineVal = {
+    ready: { ico: '✓', cls: 'ok', text: '就绪' },
+    checking: { ico: '◌', cls: '', text: '检查中…' },
+    downloading: { ico: '◌', cls: '', text: `下载中 ${Math.round((h.engineProgress || 0) * 100)}%` },
+    failed: { ico: '✗', cls: 'bad', text: '下载失败：请检查网络（GitHub 可能需要代理），重启程序自动重试' },
+  }[h.engine] || { ico: '◌', cls: '', text: h.engine }
+
+  const ffmpegVal = h.ffmpeg
+    ? { ico: '✓', cls: 'ok', text: h.ffmpegPath ? '内置版本（项目 bin/ffmpeg.exe）' : '系统安装（PATH）' }
+    : { ico: '✗', cls: 'bad', text: '未找到 —— 请把 ffmpeg.exe 放到 lasso 文件夹的 bin 子目录里（与 server.mjs 同级的 bin），或安装到系统 PATH 后点「重新检测」' }
+
+  const edgeVal = h.edge
+    ? { ico: '✓', cls: 'ok', text: '可用（抖音下载通道依赖它）' }
+    : { ico: '⚠', cls: 'warn', text: '未找到 —— 仅抖音下载不可用，其他网站不受影响。系统自带 Edge 的话请勿卸载' }
+
+  const items = [
+    { name: '下载引擎', ...engineVal },
+    { name: 'ffmpeg', ...ffmpegVal },
+    { name: 'Edge 浏览器', ...edgeVal },
+    { name: '保存目录', ico: '📂', cls: '', text: h.downloadsDir },
+  ]
+
+  const problems = items.filter(it => it.cls === 'bad').length
+  const summary = $('env-summary')
+  if (h.engine === 'downloading' || h.engine === 'checking') {
+    summary.textContent = '正在准备环境…'
+    summary.className = ''
+  } else if (problems > 0) {
+    summary.textContent = `⚠ ${problems} 项需要处理`
+    summary.className = 'warn'
+  } else {
+    summary.textContent = '✓ 一切就绪'
+    summary.className = 'ok'
+  }
+
+  const box = $('env-list')
+  box.innerHTML = ''
+  items.forEach(it => {
+    const row = document.createElement('div')
+    row.className = 'env-row'
+    row.innerHTML =
+      `<span class="env-ico">${it.ico}</span>` +
+      `<span class="env-name">${it.name}</span>` +
+      `<span class="env-val ${it.cls}">${escapeHtml(it.text)}</span>`
+    box.appendChild(row)
+  })
+
+  show('env-card')
+  // 有坏项时自动展开一次，让用户立刻看到指引
+  if (problems > 0 && !envExpandedOnce) {
+    envExpandedOnce = true
+    box.classList.remove('hidden')
+    $('env-head').classList.add('open')
+  }
+}
+
 /* ================= 引擎状态 ================= */
 let healthTimer = null
 let lastUpdateNote = ''
@@ -526,6 +613,7 @@ async function pollHealth() {
   try {
     const h = await api('/api/health')
     S.ffmpegOk = h.ffmpeg
+    renderEnv(h)
     const banner = $('engine-banner')
     const note = h.engineUpdateNote || ''
     if (note !== lastUpdateNote) {
@@ -1096,6 +1184,16 @@ $('hist-clear').onclick = () => {
   saveHistory([])
   renderHistory()
   hide('history-card')
+}
+$('env-head').onclick = e => {
+  if (e.target.id === 'env-recheck') return
+  const l = $('env-list')
+  l.classList.toggle('hidden')
+  $('env-head').classList.toggle('open', !l.classList.contains('hidden'))
+}
+$('env-recheck').onclick = e => {
+  e.stopPropagation()
+  pollHealth()
 }
 
 /* ================= 启动 ================= */
