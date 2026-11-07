@@ -5,9 +5,9 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="color-scheme" content="light dark">
 <meta name="description" content="lasso 是本机运行的全中文视频下载器：粘贴链接，选清晰度，文件直接进下载文件夹。支持 B站、抖音、YouTube 等 1800+ 网站。">
-<meta property="og:title" content="lasso · 把视频一拉就走">
+<meta property="og:title" content="lasso · 视频下载器">
 <meta property="og:description" content="本机运行的全中文视频下载器，支持 1800+ 网站，数据不出你的电脑。">
-<title>lasso · 把视频一拉就走</title>
+<title>lasso · 视频下载器</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 48 48'%3E%3Crect width='48' height='48' rx='13' fill='%23272727'/%3E%3Cg transform='rotate(-16 25 25)'%3E%3Cellipse cx='25' cy='25' rx='11.5' ry='8' fill='none' stroke='%23A3E635' stroke-width='4.5' stroke-linecap='round'/%3E%3C/g%3E%3Cpath d='M33.5 18.5 C 37.5 13.5, 36.5 9.5, 41.5 7.5' fill='none' stroke='%23A3E635' stroke-width='4.5' stroke-linecap='round'/%3E%3C/svg%3E">
 <style>
   /* =====================================================================
@@ -470,11 +470,11 @@
       <svg class="brand-mark" viewBox="0 0 48 48" width="44" height="44" aria-hidden="true"><rect width="48" height="48" rx="13" fill="#272727"/><g transform="rotate(-16 25 25)"><ellipse cx="25" cy="25" rx="11.5" ry="8" fill="none" stroke="#A3E635" stroke-width="4.5" stroke-linecap="round"/></g><path d="M33.5 18.5 C 37.5 13.5, 36.5 9.5, 41.5 7.5" fill="none" stroke="#A3E635" stroke-width="4.5" stroke-linecap="round"/></svg>
       <span class="brand-name">lasso</span>
     </div>
-    <h1 class="hero-title" aria-label="套住任何视频，一拉就走">
-      <span class="w">套住</span><span class="w">任何</span><span class="w">视频，</span><span class="w">一拉</span><span class="w">就走</span>
+    <h1 class="hero-title" aria-label="看到喜欢的视频，把它保存下来">
+      <span class="w">看到</span><span class="w">喜欢的</span><span class="w">视频，</span><span class="w">把它</span><span class="w">保存下来</span>
     </h1>
-    <p class="hero-sub">粘贴链接，选好清晰度，文件直接进下载文件夹。</p>
-    <p class="proof">本机运行 · 无广告 · 支持 1800+ 网站</p>
+    <p class="hero-sub">粘贴视频链接，选清晰度，文件直接进下载文件夹。</p>
+    <p class="proof">无广告 · 支持 1800+ 网站 · 数据不出你的电脑</p>
   </header>
 
   <div id="engine-banner" class="hidden" role="status">
@@ -552,7 +552,7 @@
 
   <section class="card hidden" id="done-card" aria-label="下载完成">
     <div class="done-icon"><svg class="ic ic-lg"><use href="#i-check-circle"/></svg></div>
-    <div class="done-title">已套住！下载完成</div>
+    <div class="done-title">下载完成</div>
     <div class="done-path" id="done-path"></div>
     <div class="done-actions">
       <button id="open-folder-btn" class="btn btn-primary"><svg class="ic"><use href="#i-folder"/></svg>打开所在文件夹</button>
@@ -591,7 +591,7 @@
     <button id="theme-toggle" class="btn btn-ghost icon-btn small" title="切换深浅色" aria-label="切换深浅色"><svg class="ic"><use href="#i-sun" id="theme-icon"/></svg></button>
     <span id="engine-note"></span>
   </div>
-  仅供个人存档，请尊重创作者版权 · 数据不出你的电脑 · 引擎 yt-dlp
+  仅供个人存档，请尊重创作者版权 · 引擎 yt-dlp
 </footer>
 
 <!-- 图标 sprite：Phosphor 风格线性图标，统一 1.5 描边、圆头圆角 -->
@@ -861,7 +861,7 @@ async function autoDetectClipboard() {
   const urls = extractUrls(t)
   if (urls.length === 1) {
     $('url-input').value = urls[0]
-    $('clip-hint').textContent = '✓ 检测到剪贴板里的链接，已帮你填好，直接点「开始解析」'
+    $('clip-hint').textContent = '✓ 检测到剪贴板里有链接，已经帮你填好了'
   }
 }
 
