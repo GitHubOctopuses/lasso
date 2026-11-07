@@ -1151,6 +1151,28 @@ const server = http.createServer(async (req, res) => {
       return
     }
 
+    // 真正的重新检测：现场重测 ffmpeg / Edge（GET /api/health 只返回缓存状态，
+    // 页面轮询用的就是它）；引擎此前下载失败的话顺带重试一次
+    if (route === 'POST /api/recheck') {
+      ffmpegPath = null
+      ;[ffmpegOk, edgeAvailable] = await Promise.all([
+        ffmpegAvailable(),
+        findEdge().then(Boolean),
+      ])
+      if (engine.status === 'failed') void ensureEngine().catch(() => {})
+      sendJson(res, 200, {
+        engine: engine.status,
+        engineProgress: engine.progress,
+        engineError: engine.error,
+        engineUpdateNote,
+        ffmpeg: ffmpegOk,
+        ffmpegPath: ffmpegPath && ffmpegPath !== 'ffmpeg' ? ffmpegPath : '',
+        edge: edgeAvailable,
+        downloadsDir: outDir,
+      })
+      return
+    }
+
     // 保存目录：预设列表 + 切换（仅允许用户主目录内的已存在目录）
     if (route === 'GET /api/outdir') {
       const home = os.homedir()

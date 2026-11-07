@@ -426,6 +426,8 @@
   .env-summary.ok { color:var(--ok); }
   .env-summary.warn { color:var(--warn); }
   .env-recheck { font-size:12px; line-height:16px; color:var(--text-2); display:inline-flex; align-items:center; gap:var(--sp-25); }
+  .env-recheck.busy .ic { animation:spin .8s linear infinite; }
+  .env-recheck.busy { opacity:.6; }
   .env-row { display:flex; gap:var(--sp-100); padding:var(--sp-100) var(--sp-0); border-top:1px solid var(--border-1); font-size:14px; line-height:20px; align-items:baseline; }
   .env-ico { width:20px; flex-shrink:0; text-align:center; }
   .env-name { width:108px; font-weight:600; flex-shrink:0; }
@@ -1383,9 +1385,29 @@ $('env-head').onclick = e => {
   l.classList.toggle('hidden')
   $('env-head').classList.toggle('open', !l.classList.contains('hidden'))
 }
-$('env-recheck').onclick = e => {
+$('env-recheck').onclick = async e => {
   e.stopPropagation()
-  pollHealth()
+  const btn = $('env-recheck')
+  if (btn.dataset.busy) return
+  btn.dataset.busy = '1'
+  btn.classList.add('busy')
+  // 检测中的即时反馈：图标旋转 + 摘要切换为检测中
+  $('env-summary').textContent = '正在重新检测…'
+  $('env-summary').className = 'env-summary'
+  try {
+    // 检测本身不到半秒，保证「检测中」状态至少可见 600ms，人眼能感知到发生了什么
+    const [h] = await Promise.all([
+      api('/api/recheck', {}),
+      new Promise(r => setTimeout(r, 600)),
+    ])
+    S.ffmpegOk = h.ffmpeg
+    renderEnv(h) // 渲染结果（✓ 一切就绪 / ⚠ 需要处理），状态变化一目了然
+    if (h.engine !== 'ready') scheduleHealth()
+  } catch { /* 服务器无响应时保留原状态 */ }
+  finally {
+    btn.dataset.busy = ''
+    btn.classList.remove('busy')
+  }
 }
 
 /* ================= 启动 ================= */
